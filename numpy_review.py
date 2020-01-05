@@ -69,7 +69,10 @@ def create_n_dimensional_array(n, data):
     nd_array = np.zeros(shape=(n, len(data)), dtype='object')
     for i in range(len(data)):
         for j in range(n):
-            nd_array[j][i] = data[i][j]
+            if j == 0:
+                nd_array[j][i] = datetime.datetime.strptime(data[i][j], '%m-%y')
+            else:
+                nd_array[j][i] = data[i][j]
     return nd_array
 
 
@@ -81,16 +84,17 @@ def datetime_string_to_datetime(dates):
 
 def generate_plot(plot, data):
     for value in data.values():
-        value[0] = datetime_string_to_datetime(value[0])
         plot.plot(value[0], value[1])
     plot.tick_params(axis='x', labelsize=6, rotation=90)
-    #plot.set_xlim(datetime.date(2005, 1, 1), datetime.date(2020, 1, 1))
-    #plot.xaxis.set_major_locator(plt_dates.YearLocator())
-    #plot.xaxis.set_minor_locator(plt_dates.MonthLocator())
+    plot.set_xlim(datetime.date(2005, 1, 1), datetime.date(2020, 1, 1))
+    plot.xaxis.set_major_locator(plt_dates.YearLocator())
+    plot.xaxis.set_minor_locator(plt_dates.MonthLocator())
     plot.legend(data.keys())
-   #plot.xaxis_date()
-    #plot.xaxis.set_major_formatter(plt_dates.DateFormatter('%m-%y'))
+    plot.xaxis_date()
+    plot.xaxis.set_major_formatter(plt_dates.DateFormatter('%m-%y'))
 
 
 generate_plot(plt.subplot(2, 1, 1), get_top_three_brands_total_reviews())
 plt.show()
+
+#get_top_three_brands_total_reviews()
