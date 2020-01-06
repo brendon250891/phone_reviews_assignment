@@ -9,11 +9,12 @@ DATABASE_NAME = "review_data.db"
 
 def run_database_query(query, params=None):
     connection = sqlite3.connect(DATABASE_NAME)
+    cursor = connection.cursor()
     query_results = None
     if params is not None:
-        query_results = connection.execute(query, params).fetchall()
+        query_results = cursor.execute(query, params).fetchall()
     else:
-        query_results = connection.execute(query).fetchall()
+        query_results = cursor.execute(query).fetchall()
     connection.close()
     return query_results
 

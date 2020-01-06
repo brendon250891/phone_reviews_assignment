@@ -11,7 +11,6 @@ import openpyxl
 import re
 import datetime
 
-# Store file names in constants
 DATABASE_NAME = "review_data.db"
 ITEMS_EXCEL = "items.xlsx"
 REVIEWS_EXCEL = "reviews.xlsx"
@@ -29,7 +28,7 @@ def file_exists(filename):
 def create_database():
     """ """
     print("Creating database...")
-    connection = sqlite3.connect('review_data.db')
+    connection = sqlite3.connect(DATABASE_NAME)
     cursor = connection.cursor()
     drop_items_table = "drop table if exists items;"
     drop_reviews_table = "drop table if exists reviews;"
@@ -68,7 +67,7 @@ def create_reviews_table(cursor):
                            asin char(10) not null,
                            name varchar(255) not null,
                            rating char(1) not null,
-                           review_date date not null,
+                           review_date datetime not null,
                            verified boolean not null,
                            title varchar(255) not null,
                            body varchar(100000), 
@@ -105,7 +104,7 @@ def check_for_formatting(value):
         year = value[-4:]
         day = value[value.find(' ') + 1: value.find(',')]
         month = month_str_to_int(value[:value.find(' ')].lower())
-        return datetime.date(int(year), int(month), int(day))
+        return datetime.datetime(int(year), int(month), int(day))
     else:
         return value
 
