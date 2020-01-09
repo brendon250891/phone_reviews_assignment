@@ -39,10 +39,10 @@ def get_distinctive_product_titles_in_alphabetical_order():
     """ Retrieves distinct product titles with at least one review and prints the in alphabetical order. """
     connection = sqlite3.connect(DATABASE_NAME)
     products = connection.cursor().execute("""
-        select distinct title, brand, rating, total_reviews from items
-        where total_reviews >= '1'
-        group by title
-        order by lower(title) asc;
+        select distinct i.title, i.brand, i.rating, i.total_reviews from items i join reviews r on r.asin = i.asin
+        where strftime('%Y', r.review_date) = '2019'
+        group by i.title
+        order by lower(i.title) asc;
         """).fetchall()
     connection.close()
     return products
@@ -51,9 +51,9 @@ def get_distinctive_product_titles_in_alphabetical_order():
 def get_product_with_one_or_more_reviews_order_by_rating_desc():
     connection = sqlite3.connect(DATABASE_NAME)
     products = connection.cursor().execute("""
-        select title, rating from items 
-        where total_reviews >= '1'
-        order by rating desc;    
+        select i.title, i.rating from items i join reviews r on r.asin = i.asin
+        where strftime('%Y', r.review_date) = '2019' group by i.title
+        order by i.rating desc;
     """).fetchall()
     connection.close()
     return products

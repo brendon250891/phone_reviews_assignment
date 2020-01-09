@@ -3,6 +3,7 @@ import matplotlib.dates as plt_dates
 import numpy as np
 import sqlite3
 import datetime
+import re
 
 DATABASE_NAME = "review_data.db"
 
@@ -33,7 +34,7 @@ def get_top_three_brands_total_reviews():
     """
     for brand in run_database_query(top_three_brands_query):
         monthly_reviews = run_database_query(monthly_reviews_query, tuple(brand))
-        top_three_brand_reviews[brand[0]] = create_n_dimensional_array(len(monthly_reviews[0]), monthly_reviews)
+        top_three_brand_reviews[brand[0]] = create_n_dimensional_array(len(monthly_reviews[0]), monthly_reviews, is_date=True)
     return top_three_brand_reviews
 
 
@@ -52,7 +53,7 @@ def get_top_five_brands_average_rating_per_month_2017_2019():
     """
     for name in run_database_query(get_brand_names_query):
         monthly_averages = run_database_query(get_brand_monthly_averages_query, tuple(name))
-        top_five_brands_average_rating[name[0]] = create_n_dimensional_array(len(monthly_averages[0]), monthly_averages)
+        top_five_brands_average_rating[name[0]] = create_n_dimensional_array(len(monthly_averages[0]), monthly_averages, is_date=True)
     return top_five_brands_average_rating
 
 
@@ -61,15 +62,37 @@ def get_reviews_against_average_rating_for_product_titles():
         select i.total_reviews, avg(r.rating) from items i join reviews r on r.asin = i.asin group by i.title
         order by i.total_reviews
         """
-    return run_database_query(product_title_average_rating_query)
+    reviews_against_average_rating = run_database_query(product_title_average_rating_query)
+    reviews_against_average_rating = create_n_dimensional_array(len(reviews_against_average_rating[0]), reviews_against_average_rating)
+    return reviews_against_average_rating
 
 
-def create_n_dimensional_array(n, data):
+def get_review_body():
+    sql_query = """
+        select strftime('%Y', review_date), body from reviews
+    """
+    review_body = run_database_query(sql_query)
+    return review_body
+
+
+def pull_comments_related_to_price(review_body_data):
+    review_body_yearly_count = {}
+    for body in review_body_data:
+        search = re.search("(price|cost|[$]+)", body[1])
+        if search:
+            if body[0] in review_body_yearly_count:
+                review_body_yearly_count[body[0]] += 1
+            else:
+                review_body_yearly_count[body[0]] = 1
+    return review_body_yearly_count
+
+
+def create_n_dimensional_array(n, data, is_date=False):
     """ Creates and returns an n-dimensional array """
     nd_array = np.zeros(shape=(n, len(data)), dtype='object')
     for i in range(len(data)):
         for j in range(n):
-            if j == 0:
+            if j == 0 and is_date:
                 nd_array[j][i] = datetime.datetime.strptime(data[i][j], '%m-%y')
             else:
                 nd_array[j][i] = data[i][j]
@@ -86,26 +109,13 @@ def find_min_max_date(data):
     min = max = None
     for values in data.values():
         for date in values[0]:
-            if min == None and max == None:
+            if min is None and max is None:
                 min = max = date.year
             else:
                 if date.year < min:
                     min = date.year
                 if date.year > max:
                     max = date.year
-    return min, max
-
-
-def find_min_max_reviews(data):
-    min = max = None
-    for values in data:
-        if min == None and max == None:
-            min = max = values[1]
-        else:
-            if values[1] < min:
-                min = values[1]
-            if values[1] > max:
-                max = values[1]
     return min, max
 
 
@@ -126,18 +136,27 @@ def generate_plot(plot, data, plot_title, x_label, y_label):
 
 
 def generate_scatter_plot(plot, data, plot_title, x_label, y_label):
-    for value in data:
-        plot.plot(value[0], value[1])
-    min_max = find_min_max_reviews(data)
-    plot.set_xlim(min_max[0], min_max[1], 10)
+    plot.scatter(data[1], data[0])
     plot.tick_params(axis='x', labelsize=6)
     plot.set_title(plot_title)
     plot.set_xlabel(x_label)
     plot.set_ylabel(y_label)
 
 
-generate_plot(plt.subplot(3, 1, 1), get_top_three_brands_total_reviews(), "Top Three Brands Total Reviews", "Date", "No. of Reviews")
-generate_plot(plt.subplot(3, 1, 2), get_top_five_brands_average_rating_per_month_2017_2019(), "Top 5 Brands Average Monthly Rating 2017-2019", "Date", "Avg Rating")
-generate_scatter_plot(plt.subplot(3, 1, 3), get_reviews_against_average_rating_for_product_titles(), "Brand Title's Average Rating vs Review", "Reviews", "Average Rating")
+def plot_last(plot, data, plot_title, x_label, y_label):
+    for key, value in sorted(data.items(), key=lambda x: (x[0])):
+        plot.plot(key, value)
+    plot.set_title(plot_title)
+    plot.set_xlabel(x_label)
+    plot.set_ylabel(y_label)
+
+
+price_related_body_tuple = []
+for key, value in pull_comments_related_to_price(get_review_body()).items():
+    price_related_body_tuple.append((key, value))
+generate_plot(plt.subplot(4, 1, 1), get_top_three_brands_total_reviews(), "Top Three Brands Total Reviews", "Date", "No. of Reviews")
+generate_plot(plt.subplot(4, 1, 2), get_top_five_brands_average_rating_per_month_2017_2019(), "Top 5 Brands Average Monthly Rating 2017-2019", "Date", "Avg Rating")
+generate_scatter_plot(plt.subplot(4, 1, 3), get_reviews_against_average_rating_for_product_titles(), "Brand Title's Average Rating vs Review", "Reviews", "Average Rating")
+plot_last(plt.subplot(4, 1, 4), pull_comments_related_to_price(get_review_body()), "Number of Reviews Relating To The Cost Of A Phone", "Date", "No. of Reviews")
 plt.subplots_adjust(hspace=0.75)
 plt.show()
