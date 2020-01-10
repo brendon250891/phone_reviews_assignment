@@ -1,23 +1,9 @@
 import matplotlib.pyplot as plt
 import matplotlib.dates as plt_dates
 import numpy as np
-import sqlite3
 import datetime
 import re
-
-DATABASE_NAME = "review_data.db"
-
-
-def run_database_query(query, params=None):
-    connection = sqlite3.connect(DATABASE_NAME)
-    cursor = connection.cursor()
-    query_results = None
-    if params is not None:
-        query_results = cursor.execute(query, params).fetchall()
-    else:
-        query_results = cursor.execute(query).fetchall()
-    connection.close()
-    return query_results
+import created_reviews as cr
 
 
 def get_top_three_brands_total_reviews():
@@ -32,8 +18,8 @@ def get_top_three_brands_total_reviews():
         from reviews r join items i on i.asin = r.asin where i.brand = ? group by date 
         order by strftime('%Y', r.review_date), strftime('%m', r.review_date)
     """
-    for brand in run_database_query(top_three_brands_query):
-        monthly_reviews = run_database_query(monthly_reviews_query, tuple(brand))
+    for brand in cr.run_database_query(top_three_brands_query):
+        monthly_reviews = cr.run_database_query(monthly_reviews_query, brand)
         top_three_brand_reviews[brand[0]] = create_n_dimensional_array(len(monthly_reviews[0]), monthly_reviews, is_date=True)
     return top_three_brand_reviews
 
@@ -51,8 +37,8 @@ def get_top_five_brands_average_rating_per_month_2017_2019():
         avg(r.rating) from reviews r join items i on r.asin = i.asin where i.brand = ? and strftime('%Y', r.review_date)
         between '2017' and '2019' group by date order by strftime('%Y', r.review_date), strftime('%m', r.review_date)
     """
-    for name in run_database_query(get_brand_names_query):
-        monthly_averages = run_database_query(get_brand_monthly_averages_query, tuple(name))
+    for name in cr.run_database_query(get_brand_names_query):
+        monthly_averages = cr.run_database_query(get_brand_monthly_averages_query, name)
         top_five_brands_average_rating[name[0]] = create_n_dimensional_array(len(monthly_averages[0]), monthly_averages, is_date=True)
     return top_five_brands_average_rating
 
@@ -62,7 +48,7 @@ def get_reviews_against_average_rating_for_product_titles():
         select i.total_reviews, avg(r.rating) from items i join reviews r on r.asin = i.asin group by i.title
         order by i.total_reviews
         """
-    reviews_against_average_rating = run_database_query(product_title_average_rating_query)
+    reviews_against_average_rating = cr.run_database_query(product_title_average_rating_query)
     reviews_against_average_rating = create_n_dimensional_array(len(reviews_against_average_rating[0]), reviews_against_average_rating)
     return reviews_against_average_rating
 
@@ -71,7 +57,7 @@ def get_review_body():
     sql_query = """
         select strftime('%Y', review_date), body from reviews
     """
-    review_body = run_database_query(sql_query)
+    review_body = cr.run_database_query(sql_query)
     return review_body
 
 
@@ -151,12 +137,10 @@ def plot_last(plot, data, plot_title, x_label, y_label):
     plot.set_ylabel(y_label)
 
 
-price_related_body_tuple = []
-for key, value in pull_comments_related_to_price(get_review_body()).items():
-    price_related_body_tuple.append((key, value))
-generate_plot(plt.subplot(4, 1, 1), get_top_three_brands_total_reviews(), "Top Three Brands Total Reviews", "Date", "No. of Reviews")
-generate_plot(plt.subplot(4, 1, 2), get_top_five_brands_average_rating_per_month_2017_2019(), "Top 5 Brands Average Monthly Rating 2017-2019", "Date", "Avg Rating")
-generate_scatter_plot(plt.subplot(4, 1, 3), get_reviews_against_average_rating_for_product_titles(), "Brand Title's Average Rating vs Review", "Reviews", "Average Rating")
-plot_last(plt.subplot(4, 1, 4), pull_comments_related_to_price(get_review_body()), "Number of Reviews Relating To The Cost Of A Phone", "Date", "No. of Reviews")
-plt.subplots_adjust(hspace=0.75)
-plt.show()
+if __name__ == "__main__":
+    generate_plot(plt.subplot(221), get_top_three_brands_total_reviews(), "Top Three Brands Total Reviews", "Date", "No. of Reviews")
+    generate_plot(plt.subplot(222), get_top_five_brands_average_rating_per_month_2017_2019(), "Top 5 Brands Average Monthly Rating 2017-2019", "Date", "Avg Rating")
+    generate_scatter_plot(plt.subplot(223), get_reviews_against_average_rating_for_product_titles(), "Brand Title's Average Rating vs Review", "Reviews", "Average Rating")
+    plot_last(plt.subplot(224), pull_comments_related_to_price(get_review_body()), "Number of Reviews Relating To The Cost Of A Phone", "Date", "No. of Reviews")
+    plt.subplots_adjust(hspace=0.75)
+    plt.show()
