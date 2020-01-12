@@ -1,11 +1,11 @@
 import created_reviews as cr
-import os
 
 TABLE_NAME = "review_summary"
 OUTPUT_FILE = "sql_review_output.txt"
 
 
 def create_review_summary_table():
+    """ Creates the review summary table. """
     print("Creating table '{0}'...".format(TABLE_NAME))
     cr.run_database_query("drop table if exists review_summary;")
     cr.run_database_query("""
@@ -14,13 +14,18 @@ def create_review_summary_table():
             brand varchar(30) not null,
             average_rating decimal(1,1) not null,
             total_reviews integer not null,
-            constraint review_summary_pk primary key (title)
+            constraint review_summary_pk primary key (title),
+            constraint valid_review_summary check (average_rating between 0.0 and 5.0 and total_reviews >= 0)
         );
     """)
 
 
 def get_distinctive_product_titles_with_at_least_one_review_in_2019_ordered_alphabetically():
-    """ Retrieves distinct product titles with at least one review and prints the in alphabetical order. """
+    """ Retrieves distinct product titles with at least one review and prints the in alphabetical order.
+
+        Returns:
+            Array: The data retrieved from the database.
+    """
     product_titles = cr.run_database_query("""
         select distinct i.title, i.brand, i.rating, i.total_reviews from items i join reviews r on r.asin = i.asin
         where strftime('%Y', r.review_date) = '2019'
@@ -30,12 +35,22 @@ def get_distinctive_product_titles_with_at_least_one_review_in_2019_ordered_alph
     return product_titles
 
 
-def insert_information_into_review_summary_table(product_titles):
-    print("Inserting '{0}' records into table '{1}'...".format(len(product_titles), TABLE_NAME))
-    cr.run_database_query("insert into review_summary values(?, ?, ?, ?)", product_titles, False)
+def insert_information_into_review_summary_table(product_information):
+    """ Inserts the data retrieved from a query into the review_summary table.
+
+        Args:
+            product_information (Array): Data retrieved from the database to be inserted into the review_summary table.
+    """
+    print("Inserting '{0}' records into table '{1}'...".format(len(product_information), TABLE_NAME))
+    cr.run_database_query("insert into review_summary values(?, ?, ?, ?)", product_information, False)
 
 
 def get_product_with_one_or_more_reviews_order_by_rating_desc():
+    """ Gets the products with one or more reviews in 2019 ordered by rating descending.
+
+        Returns:
+            Array: The data retrieved from the database.
+    """
     products = cr.run_database_query("""
         select i.title, i.rating from items i join reviews r on r.asin = i.asin
         where strftime('%Y', r.review_date) = '2019' group by i.title
@@ -45,6 +60,7 @@ def get_product_with_one_or_more_reviews_order_by_rating_desc():
 
 
 def select_display_option():
+    """ Prompts the user with options on how they wish the data to be displayed. """
     print("Select how you wish to display distinctive products ordered by title and average rating in descending order.")
     print("\t1. Print to the console.\n\t2. Write to a text file.\n")
     selection_made = False
@@ -62,7 +78,12 @@ def select_display_option():
 
 
 def display_data(write_to_file=False):
-    """ Prints the data to the console or a file based on user selection """
+    """ Prints the data to the console or a file based on user selection.
+
+        Args:
+            write_to_file (bool, optional): Default is false which writes to the console, True if the user wants to
+                write data to a file.
+    """
     products_alphabetically = get_distinctive_product_titles_with_at_least_one_review_in_2019_ordered_alphabetically()
     products_by_average = get_product_with_one_or_more_reviews_order_by_rating_desc()
     if write_to_file:
@@ -84,6 +105,8 @@ def display_data(write_to_file=False):
 
 
 if __name__ == "__main__":
+    """ Executed when the file is run. If the review_summary table doesn't exist then it is created and data written, 
+    otherwise the user is prompted with options to proceed. """
     tables = cr.get_database_info()
     review_summary_exists = False
     for table in tables:
